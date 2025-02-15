@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Transcription & Speaker Diarization</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            text-align: center;
+        }
+        textarea {
+            width: 80%;
+            height: 200px;
+            margin: 20px auto;
+            font-size: 16px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        #status {
+            font-weight: bold;
+        }
+        #status.success {
+            color: green;
+        }
+        #status.error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <h1>Real-Time Transcription & Speaker Diarization</h1>
+    <p id="status" class="success">Press Start to begin listening...</p>
+    <textarea id="transcription" readonly></textarea><br>
+    <textarea id="diarization" readonly placeholder="Diarized Output"></textarea><br>
+    <button id="start">Start</button>
+    <button id="stop" disabled>Stop</button>
+
+    <script>
+        const startButton = document.getElementById("start");
+        const stopButton = document.getElementById("stop");
+        const transcriptionBox = document.getElementById("transcription");
+        const diarizationBox = document.getElementById("diarization");
+        const status = document.getElementById("status");
+
+        let ws;
+
+        const setStatus = (message, type = "success") => {
+            status.textContent = message;
+            status.className = type;
+        };
+
+        const updateTranscription = (text) => {
+            transcriptionBox.value = text;
+        };
+
+        const updateDiarization = (text) => {
+            diarizationBox.value = text;
+        };
+
+        startButton.addEventListener("click", () => {
+            ws = new WebSocket("ws://localhost:8765");
+
+            ws.onopen = () => {
+                console.log("Connected to server.");
+                setStatus("Listening...");
+                startButton.disabled = true;
+                stopButton.disabled = false;
+                ws.send("start");
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.status === "success") {
+                        updateTranscription(data.full_transcription);
+                    } else if (data.status === "diarization_started") {
+                        setStatus("Processing speaker diarization...");
+                    } else if (data.status === "diarization_complete") {
+                        updateDiarization(data.diarization);
+                        setStatus("Diarization complete.", "success");
+                    } else {
+                        setStatus("Unexpected server response.", "error");
+                    }
+                } catch (e) {
+                    console.error("Invalid message format:", event.data);
+                    setStatus("Error parsing server response.", "error");
+                }
+            };
+
+            ws.onclose = () => {
+                console.log("Disconnected from server.");
+                setStatus("Disconnected. Press Start to reconnect.", "error");
+                startButton.disabled = false;
+                stopButton.disabled = true;
+            };
+
+            ws.onerror = (error) => {
+                console.error("WebSocket error:", error);
+                setStatus("Error occurred. Please restart.", "error");
+            };
+        });
+
+        stopButton.addEventListener("click", () => {
+            if (ws) {
+                ws.send("stop");
+                setStatus("Stopped listening. Processing final transcription...");
+                stopButton.disabled = true;
+            }
+        });
+    </script>
+</body>
+</html>
