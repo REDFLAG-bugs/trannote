@@ -9,8 +9,7 @@ Trannote is a real-time transcription and speaker diarization system designed to
 - **Live text display** in a simple, user-friendly web interface.
 
 ## Tech Stack
-- Python (FastAPI, WebSockets, asyncio)
-- JavaScript (WebSocket client)
+- Python (WebSockets, asyncio)
 - Whisper (OpenAI) for transcription
 - AssemblyAI for diarization
 - Sounddevice for capturing audio
